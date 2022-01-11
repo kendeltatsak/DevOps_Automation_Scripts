@@ -1,0 +1,40 @@
+--- 
+- name: set ntp server
+  hosts: SMG20SW004
+  connection: network_cli
+  gather_facts: false
+
+  tasks:
+    - name: set ntp server and EST timezone on ios
+      ios_config:
+        lines:
+          - ntp server 10.20.143.20 prefer
+          - ntp server 10.20.143.23
+          - clock timezone EST -5 0
+          - clock summer-time EDT recurring 2 Sunday March 02:00 1 Sunday November 02:00
+        save_when: modified
+      when: ansible_network_os == "ios"
+    
+
+    - name: set ntp server and EST timezone on nxos
+      nxos_config:
+        lines:
+          - ntp server 10.20.143.20 prefer
+          - ntp server 10.20.143.23
+          - clock timezone EST -5 0
+          - clock summer-time EDT 2 Sunday March 02:00 1 Sunday November 02:00
+        save_when: modified
+      when: ansible_network_os == "nxos"
+      
+
+    - name: show clock
+      ios_command:
+        commands: 
+          - show clock
+      register: output
+
+
+    - debug:
+        var: output.stdout_lines[0]
+        
+        

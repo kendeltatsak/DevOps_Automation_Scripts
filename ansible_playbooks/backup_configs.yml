@@ -1,0 +1,168 @@
+---
+###
+- name: print date and time to console when playbook starts
+  hosts: localhost
+
+ ###
+  tasks:
+      ###
+    - name: get time
+      command: date
+      register: time
+      changed_when: false
+      run_once: yes
+
+
+    ###
+    - name: print date
+      debug:
+        msg: "playbook started on {{ time.stdout }}"
+      run_once: yes
+
+
+    ###
+    - name: copy time/date to files 
+      copy:
+        content: "playbook started on {{ time.stdout }}"
+        dest: "/home/kendel/backup_job_log.txt"
+      run_once: yes
+
+
+ ###     
+- name: backup ios devices
+  hosts: cisco
+  gather_facts: false
+  
+  tasks:    
+    ###
+    - name: get ios running-config
+      connection: network_cli
+      ios_command:
+        commands: show running-config 
+      register: output
+      when: (ansible_network_os == "ios") or
+            (ansible_network_os == "nxos")
+
+
+    ###
+    - name: save ios running-config
+      connection: network_cli
+      copy:
+        content: "{{ output.stdout[0] }}"
+        dest: "~/network-configs/{{ site }}/{{ inventory_hostname }}_running-config"
+      when: (ansible_network_os == "ios") or
+            (ansible_network_os == "nxos")
+
+###
+- name: backup fortinet devices
+  hosts: fortinet
+  gather_facts: false
+
+  tasks:
+    ###
+    - name: get fortinet full-configuration
+      connection: httpapi
+      collections:
+      - fortinet.fortios
+
+      fortios_monitor_fact:
+        selector: "system_config_backup"
+        vdom: "{{ vdom }}"
+        params:
+          scope: "global"
+      register: backupinfo
+      when: ansible_network_os == "fortinet.fortios.fortios"
+
+
+    ###
+    - name: save fortinet full-configuration
+      connection: httpapi
+      collections:
+      - fortinet.fortios
+
+      copy:
+        content: "{{ backupinfo.meta.raw }}"
+        dest: "~/network-configs/{{ site }}/{{ inventory_hostname }}_full-config"
+      when: ansible_network_os == "fortinet.fortios.fortios"
+
+
+###
+- name: remove lines from ios devices that are unwanted
+  hosts: cisco
+
+  tasks:
+  ###
+  - name: remove lines from ios config
+    replace:
+      path: "~/network-configs/{{ site }}/{{ inventory_hostname }}_running-config"
+      regexp: "{{ item.regexp }}"
+      replace: ''
+    delegate_to: localhost
+    when: (ansible_network_os == "ios") or
+          (ansible_network_os == "nxos")
+    loop:
+        - { regexp: '^!Time.*' }
+        - { regexp: '^Current configuration.*' }
+        - { regexp: 'Last configuration.*' }
+        - { regexp: 'NVRAM config.*' }
+        - { regexp: '^enable secret.*' }
+        - { regexp: '^enable password.*' }
+        - { regexp: '^username.*' }
+        - { regexp: '^ntp clock-period.*'}
+
+
+###
+- name: remove lines from fortigate config that contain hashed passwords, conf_file_ver, and hashed private keys
+  hosts: fortinet
+
+  tasks:
+  ###
+  - name: remove lines from fortigate config
+    replace:
+      path: "~/network-configs/{{ site }}/{{ inventory_hostname }}_full-config"
+      regexp: "{{ item.regexp }}"
+      replace: ''
+    delegate_to: localhost
+    when: ansible_network_os == 'fortinet.fortios.fortios'
+    loop:
+      - { regexp: '^#config.*$' }
+      - { regexp: '^#conf.*$' }
+      - { regexp: '^#buildno.*$' }
+      - { regexp: '^#global_vdom.*$' }
+      - { regexp: '[a-zA-Z0-9+/]{198}==$' }
+      - { regexp: 'PRIVATE KEY-----[\s\S]*?PRIVATE KEY-----' }
+      - { regexp: 'CERTIFICATE-----[\s\S]*?CERTIFICATE-----' }
+
+
+
+###
+- name: push to git 
+  hosts: localhost
+
+  tasks:
+    ###
+    - name: get time
+      command: date
+      register: time
+      changed_when: false
+      run_once: yes
+
+
+    ###
+    - name: git commands
+      shell: |
+        git add .
+        git commit -m "last change recorded on {{ time.stdout }}"
+        git push
+      args:
+        chdir: /home/kendel/network-configs/
+      delegate_to: localhost
+      run_once: yes
+
+    ###
+    - name: copy time/date to files
+      lineinfile:
+        line: "git push attempted on {{ time.stdout }}"
+        path: "/home/kendel/backup_job_log.txt"
+      run_once: yes
+    
