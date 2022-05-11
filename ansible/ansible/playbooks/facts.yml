@@ -1,0 +1,17 @@
+---
+- name: get and print ios facts
+  hosts: norway_switches
+  connection: network_cli
+
+  tasks:
+    ###
+    - name: gather facts
+      ios_facts:
+        gather_subset: "!all"
+        gather_network_resources: l2_interfaces
+      register: output
+    
+
+
+    - debug:
+        msg: "{{ output }}"

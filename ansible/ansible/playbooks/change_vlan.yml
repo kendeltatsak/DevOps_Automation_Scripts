@@ -1,0 +1,80 @@
+# ---
+# - name: backup ios devices
+#   hosts: windham_switches
+#   gather_facts: false
+
+#   tasks:
+#     ###
+#     - name: show mac address table
+#       connection: network_cli
+#       ios_command:
+#         commands: show mac add | include 10cd.ae63.d2d2
+#       register: output
+#       when: type == "switch"
+
+#     - set_fact:
+#         mac_table: "{{ output.stdout[0].split() }}"
+
+
+#     ###
+#     - name: print mac address table
+#       debug:
+#         msg: "{{ mac_table }}"
+
+---
+- name: Find mac address in smg switches
+  hosts: norway_switches #:windham_switches
+  connection: network_cli
+  vars:
+    mac: 70b5.e874.137b
+  # vars_prompt:
+  #    - name: mac
+  #      prompt: What is the mac address?
+  #      private: no
+
+  tasks:
+
+    - ios_command:
+        commands:
+          - "show mac address-table | include {{ mac }}"
+      register: output
+
+    - set_fact:
+        int: "{{ output.stdout[0] | replace('Gi', 'GigabitEthernet') }}"
+
+    - ios_facts:
+        gather_network_resources: l2_interfaces
+      register: output
+
+    - set_fact:
+        # list of dictionaries describing L2 interfaces
+        l2_ints: "{{ output.ansible_facts['ansible_network_resources']['l2_interfaces'] }}"
+
+    - debug:
+        #var: l2_ints[0]['name']
+        var: l2_ints
+    # - name: search
+    #   ios_command:
+    #     commands:
+    #       - "show mac address-table | include {{ mac }}"
+    #   register: printout
+
+    # - set_fact:
+    #     int: "{{ printout.stdout[0].split('\n') }}"
+    # - set_fact:
+    #    int2: "{{ int[0].split() | replace('Gi', 'GigabitEthernet') }}"
+
+    # - debug:
+    #     msg: "{{ int2[3] }}"
+    #   when: "int2 != []"
+    
+    # - name: gather facts
+    #   when: "int2 != []"
+    #   ios_facts:
+    #     gather_subset: "!all"
+    #     gather_network_resources: l2_interfaces
+    #   register: output #.ansible_facts['ansible_network_resources']['name']
+
+    # - set_fact:
+    #     l2_ints: "{{ output.ansible_facts['ansible_network_resources']['l2_interfaces'] }}"
+    #   when: "int2 != []"

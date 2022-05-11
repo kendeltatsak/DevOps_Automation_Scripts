@@ -1,0 +1,13 @@
+---
+- name: Find ip location
+  hosts: ios_devices
+  gather_facts: false
+  connection: network_cli
+  vars_prompt:
+     - name: ip_address
+       prompt: What is the ip address?
+       private: no
+
+
+  tasks:
+    

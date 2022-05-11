@@ -1,0 +1,41 @@
+---
+- name: create dhcp scope
+  hosts: SMG20SW004
+  connection: network_cli
+  gather_facts: false
+
+  tasks:
+
+    - debug:
+        msg: "subnet = 10.{{ site_code }}.112.0/24"
+      when: (ansible_network_os == "ios") and
+            (hostname != "Spectrum-Voice-GW") and
+            (hostname != "SMGCUmmingsRdSRST") and
+            (hostname != "SMG20RTR001") and
+            (hostname != "SMG10RTR001")
+
+    - name: create dhcp scope and excluded addresses
+      ios_config:
+        lines:
+          - ip dhcp pool PRINTERS
+          - ip dhcp excluded-address 10.{{ site_code }}.112.1 10.{{ site_code }}.112.150
+      when: (ansible_network_os == "ios") and
+            (hostname != "Spectrum-Voice-GW") and
+            (hostname != "SMGCUmmingsRdSRST") and
+            (hostname != "SMG20RTR001") and
+            (hostname != "SMG10RTR001")
+
+    - name: configure dhcp scope
+      ios_config:
+        lines: 
+          - "network 10.{{ site_code }}.112.0 255.255.255.0"
+          - "default-router 10.{{ site_code }}.112.1"
+          - "dns-server 208.67.222.222 208.67.220.220"
+          - "domain-name spectrummedicalgroup.com"
+          - "lease infinite"
+        parents: ip dhcp pool PRINTERS
+      when: (ansible_network_os == "ios") and
+            (hostname != "Spectrum-Voice-GW") and
+            (hostname != "SMGCUmmingsRdSRST") and
+            (hostname != "SMG20RTR001") and
+            (hostname != "SMG10RTR001")
