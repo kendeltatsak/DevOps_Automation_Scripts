@@ -1,0 +1,1 @@
+doesn't seem to work as expected with Powershell 7. Use a version of Powershell < 7 or run from within VSCode
